@@ -1,0 +1,10 @@
+CREATE TABLE "User" ("id" TEXT NOT NULL PRIMARY KEY, "email" TEXT NOT NULL, "name" TEXT NOT NULL, "passwordHash" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL);
+CREATE TABLE "OutreachRecipient" ("id" TEXT NOT NULL PRIMARY KEY, "email" TEXT NOT NULL, "name" TEXT, "company" TEXT, "consentedAt" DATETIME NOT NULL, "unsubscribedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL);
+CREATE TABLE "OutreachCampaign" ("id" TEXT NOT NULL PRIMARY KEY, "name" TEXT NOT NULL, "subject" TEXT NOT NULL, "bodyHtml" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'RUNNING', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "completedAt" DATETIME);
+CREATE TABLE "OutreachDelivery" ("id" TEXT NOT NULL PRIMARY KEY, "campaignId" TEXT NOT NULL, "recipientId" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'PENDING', "attempts" INTEGER NOT NULL DEFAULT 0, "sentAt" DATETIME, "lastError" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "OutreachDelivery_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "OutreachCampaign" ("id") ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT "OutreachDelivery_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "OutreachRecipient" ("id") ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "OutreachRecipient_email_key" ON "OutreachRecipient"("email");
+CREATE INDEX "OutreachRecipient_unsubscribedAt_idx" ON "OutreachRecipient"("unsubscribedAt");
+CREATE INDEX "OutreachCampaign_status_idx" ON "OutreachCampaign"("status");
+CREATE INDEX "OutreachDelivery_status_createdAt_idx" ON "OutreachDelivery"("status", "createdAt");
+CREATE UNIQUE INDEX "OutreachDelivery_campaignId_recipientId_key" ON "OutreachDelivery"("campaignId", "recipientId");

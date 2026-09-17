@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model OutreachRecipient {
+  id             String             @id @default(cuid())
+  email          String             @unique
+  name           String?
+  company        String?
+  consentedAt    DateTime
+  unsubscribedAt DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deliveries     OutreachDelivery[]
+
+  @@index([unsubscribedAt])
+}
+
+model OutreachCampaign {
+  id          String             @id @default(cuid())
+  name        String
+  subject     String
+  bodyHtml    String
+  status      CampaignStatus     @default(RUNNING)
+  createdAt   DateTime           @default(now())
+  startedAt   DateTime           @default(now())
+  completedAt DateTime?
+  deliveries  OutreachDelivery[]
+
+  @@index([status])
+}
+
+model OutreachDelivery {
+  id          String            @id @default(cuid())
+  campaignId  String
+  recipientId String
+  status      DeliveryStatus    @default(PENDING)
+  attempts    Int               @default(0)
+  sentAt      DateTime?
+  lastError   String?
+  createdAt   DateTime          @default(now())
+  campaign    OutreachCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipient   OutreachRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, recipientId])
+  @@index([status, createdAt])
+}
+
+enum CampaignStatus {
+  RUNNING
+  COMPLETE
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
