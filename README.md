@@ -15,6 +15,10 @@ DATABASE_TURSO_DATABASE_URL="libsql://your-database.turso.io"
 DATABASE_TURSO_AUTH_TOKEN="your-turso-auth-token"
 ```
 
+Vercel must have these variables configured for the Production environment,
+followed by a new deployment. `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are
+also supported. Do not set either database URL to a local `file:` path.
+
 The Prisma runtime uses the libSQL adapter and fails fast when either variable is
 missing. Deploy the schema to your Turso database using your Turso migration workflow.
 

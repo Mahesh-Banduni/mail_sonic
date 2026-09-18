@@ -8,6 +8,7 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env.DATABASE_TURSO_DATABASE_URL,
+    url:
+      process.env.DATABASE_TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL,
   },
 });
