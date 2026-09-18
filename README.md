@@ -5,6 +5,19 @@ Set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `NEXTAUTH_SECRET`, SMTP values, and
 imports opted-in CSV/JSON contacts, queues campaigns, and the cron route sends one
 message every six seconds with an unsubscribe link.
 
+## Database
+
+Turso is required for the application database. Set these environment variables
+locally and in Vercel:
+
+```env
+DATABASE_TURSO_DATABASE_URL="libsql://your-database.turso.io"
+DATABASE_TURSO_AUTH_TOKEN="your-turso-auth-token"
+```
+
+The Prisma runtime uses the libSQL adapter and fails fast when either variable is
+missing. Deploy the schema to your Turso database using your Turso migration workflow.
+
 ## Getting Started
 
 First, run the development server:

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         {
           email,
           name: String(row.name ?? "").trim() || null,
-          company: String(row.company ?? "").trim() || null,
+          company: String(row.name ?? "").trim() || null,
           consentedAt: new Date(),
         },
       ];

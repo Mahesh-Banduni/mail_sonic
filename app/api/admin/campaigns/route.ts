@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     if (!delivery) continue;
 
     try {
-      console.log("[campaign] sending to recipient", {
+      console.log(`[campaign] sending to recipient ${sent}`, {
         recipientId: recipient.id,
         email: recipient.email,
         campaignId: campaign.id,
@@ -75,15 +75,15 @@ export async function POST(request: NextRequest) {
         unsubscribeUrl: `${appUrl}/api/unsubscribe?email=${encodeURIComponent(recipient.email)}`,
       });
 
-      console.log("[campaign] mail response", response);
-
       await prisma.outreachDelivery.update({
         where: { id: delivery.id },
         data: { status: "SENT", sentAt: new Date() },
       });
       sent += 1;
+
+      console.log(`[campaign] mail response ${sent}`, response);
     } catch (error) {
-      console.error("[campaign] failed recipient delivery", {
+      console.error(`[campaign] failed recipient delivery ${sent}`, {
         recipientId: recipient.id,
         email: recipient.email,
         campaignId: campaign.id,

@@ -86,15 +86,16 @@ export async function sendOutreachMail(input: {
       <p style="margin: 0; font-size: 12px; line-height: 1.7; color: #475569;">
         contact@immortifydigital.com · +91 79068 73874
       </p>
-      <p style="margin: 12px 0 0; font-size: 12px; line-height: 1.7; color: #475569;">
-        You received this email because you opted in to our updates.
-        <a href="${escapeHtml(input.unsubscribeUrl)}" style="color: #1d4ed8; text-decoration: underline;">
-          Unsubscribe
-        </a>
-      </p>
     </div>
   </div>
 `;
+
+/*<p style="margin: 12px 0 0; font-size: 12px; line-height: 1.7; color: #475569;">
+  You received this email because you opted in to our updates.
+  <a href="${escapeHtml(input.unsubscribeUrl)}" style="color: #1d4ed8; text-decoration: underline;">
+    Unsubscribe
+  </a>
+</p>*/
 
 try {
   const info = await transporter.sendMail({

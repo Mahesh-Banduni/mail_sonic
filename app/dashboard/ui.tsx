@@ -37,14 +37,16 @@ type Data = {
   subscribed: number;
   campaigns: Campaign[];
 };
-const template = `<p>Immortify Digital creates refined digital experiences for ambitious businesses ready to move forward.</p><p>We craft bespoke ecommerce platforms and high-performance web applications designed around the way your business operates. From products and orders to inventory, payments, customers, and automation, we bring every essential element together through thoughtful technology and seamless digital experiences.</p><p>Whether you're launching a distinctive ecommerce brand, transforming your operations, or developing a sophisticated web application, we combine strategy, design, and engineering to create digital solutions that are built to perform — and designed to leave a lasting impression.</p>`;
+// const template = `<p>Immortify Digital creates refined digital experiences for ambitious businesses ready to move forward.</p><p>We craft bespoke ecommerce platforms and high-performance web applications designed around the way your business operates. From products and orders to inventory, payments, customers, and automation, we bring every essential element together through thoughtful technology and seamless digital experiences.</p><p>Whether you're launching a distinctive ecommerce brand, transforming your operations, or developing a sophisticated web application, we combine strategy, design, and engineering to create digital solutions that are built to perform — and designed to leave a lasting impression.</p>`;
+// const template = `<p>Immortify Digital creates refined digital experiences for ambitious businesses ready to move forward.</p><p>We design and engineer bespoke web applications and digital platforms built around the unique needs of your business. From customer experiences and internal systems to complex workflows, integrations, automation, and scalable digital products, we bring strategy, design, and technology together with purpose.</p><p>Whether you're launching a new digital product, transforming the way your business operates, or building a sophisticated web application from the ground up, we combine thoughtful strategy, distinctive design, and robust engineering to create digital solutions that perform exceptionally — and leave a lasting impression.</p>`;
+const template =`<p>Immortify Digital creates thoughtful digital experiences for ambitious businesses ready to grow.</p><p>We design and build custom web/ecommerce applications and digital platforms tailored to your business. From customer-facing websites and internal tools to complex workflows, integrations, automation, and scalable digital products, we bring strategy, design, and technology together to solve real business needs.</p><p>Whether you're launching a new digital product, improving how your business works, or building a web application from scratch, we combine smart strategy, distinctive design, and reliable technology to create digital solutions that work well and make a lasting impression.</p>`
 export default function DashboardClient() {
   const [data, setData] = useState<Data | null>(null),
     [loading, setLoading] = useState(true),
     [notice, setNotice] = useState(""),
     [name, setName] = useState("Immortify Digital introduction"),
     [subject, setSubject] = useState(
-      "Practical digital solutions for growing businesses",
+      "A strong opportunity to improve your digital presence",
     ),
     [body, setBody] = useState(template),
     [busy, setBusy] = useState(false);
