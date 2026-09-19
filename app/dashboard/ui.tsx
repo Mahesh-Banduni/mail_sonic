@@ -49,6 +49,8 @@ export default function DashboardClient() {
       "A strong opportunity to improve your digital presence",
     ),
     [body, setBody] = useState(template),
+    [recipientCount, setRecipientCount] = useState("all"),
+    [customCount, setCustomCount] = useState(""),
     [busy, setBusy] = useState(false);
   const load = async () => {
     const response = await fetch("/api/admin/outreach");
@@ -80,7 +82,12 @@ export default function DashboardClient() {
     const response = await fetch("/api/admin/campaigns", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, subject, bodyHtml: body }),
+      body: JSON.stringify({
+        name,
+        subject,
+        bodyHtml: body,
+        recipientCount: recipientCount === "all" ? "all" : customCount,
+      }),
     });
     const result = await response.json();
     setNotice(
@@ -169,13 +176,38 @@ export default function DashboardClient() {
                 className="mt-2 min-h-52 w-full rounded-xl border border-slate-200 bg-slate-50/60 p-3 font-mono text-xs leading-5 outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10"
               />
             </label>
+            <label className="mt-4 block text-sm font-semibold text-slate-700">
+              Recipients
+              <select
+                value={recipientCount}
+                onChange={(e) => setRecipientCount(e.target.value)}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 text-sm outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10"
+              >
+                <option value="all">All subscribed contacts</option>
+                <option value="custom">Custom number of contacts</option>
+              </select>
+            </label>
+            {recipientCount === "custom" && (
+              <label className="mt-3 block text-sm font-semibold text-slate-700">
+                Number of contacts
+                <input
+                  type="number"
+                  min="1"
+                  max={data?.subscribed ?? undefined}
+                  value={customCount}
+                  onChange={(e) => setCustomCount(e.target.value)}
+                  placeholder={`1-${data?.subscribed ?? 0}`}
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 text-sm outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10"
+                />
+              </label>
+            )}
             <button
-              disabled={busy || !data?.subscribed}
+              disabled={busy || !data?.subscribed || (recipientCount === "custom" && (!customCount || Number(customCount) < 1))}
               onClick={queue}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-600/20 transition hover:bg-cyan-700 disabled:opacity-60"
             >
               <SendIcon className="h-4 w-4" />
-              Queue for {data?.subscribed ?? 0} subscribed contacts
+              Queue for {recipientCount === "all" ? (data?.subscribed ?? 0) : customCount || 0} subscribed contacts
             </button>
             <button
               disabled={busy}
@@ -213,7 +245,7 @@ export default function DashboardClient() {
             )}
           </section>
         </div>
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,.05)]">
+        {/* <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,.05)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-6"><div><div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[.16em] text-[#0e7490]"><ContactsIcon className="h-4 w-4" />Audience</div><h2 className="text-xl font-semibold tracking-tight text-slate-950">Contacts</h2>
             <p className="mt-1 text-sm text-slate-500">
               CSV fields: email, name, company. Import only people who opted in.
@@ -250,7 +282,7 @@ export default function DashboardClient() {
               </p>
             )}
           </div>
-        </section>
+        </section> */}
         </div>
       </main>
     </div>

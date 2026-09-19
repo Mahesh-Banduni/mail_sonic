@@ -42,3 +42,7 @@ export function MailIcon(props: IconProps) { return <Icon {...props}><rect x="3"
 export function PlusIcon(props: IconProps) { return <Icon {...props}><path d="M12 5v14M5 12h14" /></Icon>; }
 export function SendIcon(props: IconProps) { return <Icon {...props}><path d="m21 3-7 18-4-8-8-4zM21 3 10 13" /></Icon>; }
 export function UsersIcon(props: IconProps) { return <Icon {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></Icon>; }
+export function SearchIcon(props: IconProps) { return <Icon {...props}><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></Icon>; }
+export function TrashIcon(props: IconProps) { return <Icon {...props}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></Icon>; }
+export function EditIcon(props: IconProps) { return <Icon {...props}><path d="m4 16-.8 4.8L8 20l11.2-11.2a2.1 2.1 0 0 0-3-3L4 16Z" /><path d="m14.5 7.5 2 2" /></Icon>; }
+export function SortIcon(props: IconProps) { return <Icon {...props}><path d="M8 6h12M8 12h8M8 18h4M4 5v14M4 5 2 7M4 5l2 2M4 19l-2-2M4 19l2-2" /></Icon>; }

@@ -22,8 +22,6 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Campaigns", href: "/dashboard/campaigns", icon: CampaignsIcon },
   { name: "Contacts", href: "/dashboard/contacts", icon: ContactsIcon },
-  { name: "Templates", href: "/dashboard/templates", icon: TemplatesIcon },
-  { name: "Analytics", href: "/dashboard/analytics", icon: AnalyticsIcon },
   { name: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
 ];
 
