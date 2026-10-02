@@ -1,27 +1,37 @@
+import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-const databaseUrl =
-  process.env.DATABASE_TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL;
-const authToken =
-  process.env.DATABASE_TURSO_AUTH_TOKEN ?? process.env.TURSO_AUTH_TOKEN;
 
-if (!databaseUrl || !authToken) {
+const connectionString =
+  process.env.DATABASE_URL ??
+  process.env.POSTGRES_URL ??
+  process.env.NEON_DATABASE_URL;
+
+if (!connectionString) {
   throw new Error(
-    "A Turso database URL and auth token are required. Set DATABASE_TURSO_DATABASE_URL and DATABASE_TURSO_AUTH_TOKEN (or TURSO_DATABASE_URL and TURSO_AUTH_TOKEN).",
+    "A Postgres database URL is required. Set DATABASE_URL to your Neon pooled connection string, for example postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require.",
   );
 }
 
-if (!databaseUrl.startsWith("libsql://") && !databaseUrl.startsWith("https://")) {
+if (
+  !connectionString.startsWith("postgres://") &&
+  !connectionString.startsWith("postgresql://")
+) {
   throw new Error(
-    "The Turso database URL must start with libsql:// or https://. Do not use a local file: URL in production.",
+    "The Neon database URL must start with postgres:// or postgresql://.",
   );
 }
 
-const adapter = new PrismaLibSql({
-  url: databaseUrl,
-  authToken,
-});
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+const adapter = new PrismaNeon({ connectionString });
+
+function createClient() {
+  return new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
+}
+
+export const prisma = globalForPrisma.prisma ?? createClient();
+
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

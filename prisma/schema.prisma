@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -34,6 +34,9 @@ model OutreachCampaign {
   name        String
   subject     String
   bodyHtml    String
+  /// How many contacts this campaign is allowed to process at once.
+/// A null value means "no limit" - process every recipient in one run.
+  batchSize   Int?
   status      CampaignStatus     @default(RUNNING)
   createdAt   DateTime           @default(now())
   startedAt   DateTime           @default(now())

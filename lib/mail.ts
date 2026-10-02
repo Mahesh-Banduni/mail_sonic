@@ -1,15 +1,22 @@
 import nodemailer from "nodemailer";
 
+const smtpPort = Number(process.env.SMTP_PORT ?? 587);
+const smtpSecure =
+  smtpPort === 465 ||
+  (smtpPort !== 587 && process.env.SMTP_SECURE === "true");
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT ?? 587),
-  secure: process.env.SMTP_SECURE === "true",
+  port: smtpPort,
+  secure: smtpSecure,
   auth: process.env.SMTP_USER
     ? {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS ?? process.env.SMTP_PASSWORD,
       }
     : undefined,
+  pool: true,
+  maxConnections: 1,
 });
 
 const escapeHtml = (value: string) =>
@@ -31,7 +38,7 @@ export async function sendOutreachMail(input: {
     subject: input.subject,
     smtpHost: process.env.SMTP_HOST,
     smtpPort: process.env.SMTP_PORT,
-    smtpSecure: process.env.SMTP_SECURE,
+    smtpSecure,
     smtpUser: process.env.SMTP_USER,
   });
 
@@ -173,7 +180,7 @@ export async function sendOutreachMail(input: {
           <tr>
             <td
               style="
-                padding: 26px 30px 20px 30px;
+                padding: 26px 30px 18px 30px;
                 background: #0b1220;
                 background-image: linear-gradient(
                   135deg,

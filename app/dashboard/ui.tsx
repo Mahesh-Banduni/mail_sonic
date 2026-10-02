@@ -6,8 +6,6 @@ import Sidebar from "@/components/Sidebar";
 import {
   ActivityIcon,
   CheckCircleIcon,
-  ClockIcon,
-  ContactsIcon,
   DownloadIcon,
   FileTextIcon,
   MailIcon,
@@ -51,6 +49,8 @@ export default function DashboardClient() {
     [body, setBody] = useState(template),
     [recipientCount, setRecipientCount] = useState("all"),
     [customCount, setCustomCount] = useState(""),
+    [batchMode, setBatchMode] = useState("all"),
+    [batchCustom, setBatchCustom] = useState(""),
     [busy, setBusy] = useState(false);
   const load = async () => {
     const response = await fetch("/api/admin/outreach");
@@ -87,25 +87,16 @@ export default function DashboardClient() {
         subject,
         bodyHtml: body,
         recipientCount: recipientCount === "all" ? "all" : customCount,
+        batchSize: batchMode === "all" ? "all" : batchCustom,
       }),
     });
     const result = await response.json();
     setNotice(
       response.ok
-        ? `Campaign queued for ${result.queued} contacts.`
+        ? result.remaining > 0
+          ? `Queued ${result.queued} contacts · ${result.sent} sent now · ${result.remaining} waiting for the next run.`
+          : `Campaign queued for ${result.sent} of ${result.queued} contacts.`
         : result.message,
-    );
-    setBusy(false);
-    await load();
-  }
-  async function sendQueuedMails() {
-    setBusy(true);
-    const response = await fetch("/api/cron/outreach");
-    const result = await response.json();
-    setNotice(
-      response.ok
-        ? `Queued mail run complete: ${result.sent ?? 0} sent, ${result.failed ?? 0} failed.`
-        : result.message || "Failed to send queued mails.",
     );
     setBusy(false);
     await load();
@@ -201,21 +192,37 @@ export default function DashboardClient() {
                 />
               </label>
             )}
+            <label className="mt-4 block text-sm font-semibold text-slate-700">
+              Contacts per run
+              <select
+                value={batchMode}
+                onChange={(e) => setBatchMode(e.target.value)}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 text-sm outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10"
+              >
+                <option value="all">All queued contacts in one run</option>
+                <option value="custom">Limit contacts per run</option>
+              </select>
+            </label>
+            {batchMode === "custom" && (
+              <label className="mt-3 block text-sm font-semibold text-slate-700">
+                How many contacts at a time?
+                <input
+                  type="number"
+                  min="1"
+                  value={batchCustom}
+                  onChange={(e) => setBatchCustom(e.target.value)}
+                  placeholder="e.g. 50"
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50/60 px-3 text-sm outline-none transition focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10"
+                />
+              </label>
+            )}
             <button
-              disabled={busy || !data?.subscribed || (recipientCount === "custom" && (!customCount || Number(customCount) < 1))}
+              disabled={busy || !data?.subscribed || (recipientCount === "custom" && (!customCount || Number(customCount) < 1)) || (batchMode === "custom" && (!batchCustom || Number(batchCustom) < 1))}
               onClick={queue}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-600/20 transition hover:bg-cyan-700 disabled:opacity-60"
             >
               <SendIcon className="h-4 w-4" />
               Queue for {recipientCount === "all" ? (data?.subscribed ?? 0) : customCount || 0} subscribed contacts
-            </button>
-            <button
-              disabled={busy}
-              onClick={sendQueuedMails}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
-            >
-              <ClockIcon className="h-4 w-4" />
-              Send queued mails now
             </button>
               </div>
           </section>

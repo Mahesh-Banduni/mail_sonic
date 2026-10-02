@@ -1,26 +1,39 @@
 # Immortify Digital mail outreach
 
-Set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `NEXTAUTH_SECRET`, SMTP values, and
-`CRON_SECRET` in `.env`; then run `npm run db:seed` and `npm run dev`. The dashboard
-imports opted-in CSV/JSON contacts, queues campaigns, and the cron route sends one
-message every six seconds with an unsubscribe link.
+Set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `NEXTAUTH_SECRET`, and SMTP values in
+`.env`; then run `npm run db:seed` and `npm run dev`. The dashboard
+imports opted-in CSV/JSON contacts and creates campaigns with an unsubscribe
+link. Campaigns are sent manually: each campaign is configured with how many
+contacts may run at once, and remaining contacts stay queued until you run the
+campaign again from the campaigns list.
 
 ## Database
 
-Turso is required for the application database. Set these environment variables
-locally and in Vercel:
+Neon PostgreSQL is used for the application database. Set this environment
+variable locally and in Vercel:
 
 ```env
-DATABASE_TURSO_DATABASE_URL="libsql://your-database.turso.io"
-DATABASE_TURSO_AUTH_TOKEN="your-turso-auth-token"
+DATABASE_URL="postgresql://USER:PASSWORD@ep-xxx-pooler.REGION.aws.neon.tech/neondb?sslmode=require"
 ```
 
-Vercel must have these variables configured for the Production environment,
-followed by a new deployment. `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are
-also supported. Do not set either database URL to a local `file:` path.
+Use the **pooled** connection string (the one containing `-pooler`) for the
+serverless runtime so many concurrent requests share a single connection.
+`POSTGRES_URL` and `NEON_DATABASE_URL` are also supported as fallbacks.
 
-The Prisma runtime uses the libSQL adapter and fails fast when either variable is
-missing. Deploy the schema to your Turso database using your Turso migration workflow.
+Vercel must have `DATABASE_URL` configured for the Production environment,
+followed by a new deployment.
+
+The Prisma runtime uses the Neon driver adapter (`@prisma/adapter-neon`) and
+fails fast when the variable is missing or is not a `postgres://` URL.
+
+Apply the schema to your Neon database and create the admin user:
+
+```bash
+npm run db:deploy   # or npm run db:migrate when developing
+npm run db:seed
+```
+
+`npm run db:studio` opens Prisma Studio against the same Neon database.
 
 ## Getting Started
 

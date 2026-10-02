@@ -1,8 +1,13 @@
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendOutreachMail } from "@/lib/mail";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  appUrl,
+  parseBatchSize,
+  sendPendingDeliveries,
+  settleCampaign,
+} from "@/lib/outreach";
 
 export const runtime = "nodejs";
 
@@ -11,71 +16,73 @@ function positiveInteger(value: string | null, fallback: number) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-async function retryCampaign(id: string) {
-  const campaign = await prisma.outreachCampaign.findUnique({ where: { id } });
+async function loadCampaign(id: string) {
+  return prisma.outreachCampaign.findUnique({
+    where: { id },
+    include: { _count: { select: { deliveries: true } } },
+  });
+}
+
+/** Sends the next batch of a campaign and reports whether work remains. */
+async function runCampaignBatch(id: string) {
+  const campaign = await loadCampaign(id);
   if (!campaign)
     return NextResponse.json({ message: "Campaign not found." }, { status: 404 });
 
-  const appUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL;
-  if (!appUrl)
+  if (!appUrl())
     return NextResponse.json(
       { message: "Set NEXTAUTH_URL before sending outreach emails." },
       { status: 500 },
     );
 
+  try {
+    const summary = await sendPendingDeliveries(id, campaign.batchSize);
+    const pending = await prisma.outreachDelivery.count({
+      where: { campaignId: id, status: { in: ["PENDING", "SENDING"] } },
+    });
+
+    return NextResponse.json({
+      campaignId: id,
+      batchSize: campaign.batchSize,
+      processed: summary.processed,
+      sent: summary.sent,
+      failed: summary.failed,
+      skipped: summary.skipped,
+      remaining: pending,
+      status: pending === 0 ? "COMPLETE" : "RUNNING",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message:
+          error instanceof Error ? error.message : "Unable to run campaign.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/** Resets failed/skipped deliveries so they can be picked up again. */
+async function retryCampaign(id: string) {
+  const campaign = await loadCampaign(id);
+  if (!campaign)
+    return NextResponse.json({ message: "Campaign not found." }, { status: 404 });
+
   await prisma.outreachDelivery.updateMany({
     where: {
       campaignId: id,
-      status: { in: ["PENDING", "FAILED", "SKIPPED"] },
+      status: { in: ["FAILED", "SKIPPED"] },
       recipient: { unsubscribedAt: null },
     },
     data: { status: "PENDING", lastError: null },
   });
 
-  let sent = 0;
-  let failed = 0;
-  const deliveries = await prisma.outreachDelivery.findMany({
-    where: { campaignId: id, status: "PENDING" },
-    orderBy: { createdAt: "asc" },
-    include: { recipient: true },
-  });
-
-  for (const delivery of deliveries) {
-    const claim = await prisma.outreachDelivery.updateMany({
-      where: { id: delivery.id, status: "PENDING" },
-      data: { status: "SENDING", attempts: { increment: 1 } },
-    });
-    if (!claim.count) continue;
-    try {
-      await sendOutreachMail({
-        to: delivery.recipient.email,
-        name: delivery.recipient.name,
-        subject: campaign.subject,
-        bodyHtml: campaign.bodyHtml,
-        unsubscribeUrl: `${appUrl}/api/unsubscribe?email=${encodeURIComponent(delivery.recipient.email)}`,
-      });
-      await prisma.outreachDelivery.update({
-        where: { id: delivery.id },
-        data: { status: "SENT", sentAt: new Date() },
-      });
-      sent += 1;
-    } catch (error) {
-      await prisma.outreachDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: "FAILED",
-          lastError: error instanceof Error ? error.message : "Mail error",
-        },
-      });
-      failed += 1;
-    }
-  }
-
-  await prisma.outreachCampaign.update({
+  await prisma.outreachCampaign.updateMany({
     where: { id },
-    data: { status: "COMPLETE", completedAt: new Date() },
+    data: { status: "RUNNING", completedAt: null },
   });
-  return NextResponse.json({ campaignId: id, queued: deliveries.length, sent, failed });
+
+  return runCampaignBatch(id);
 }
 
 export async function GET(request: NextRequest) {
@@ -101,7 +108,34 @@ export async function GET(request: NextRequest) {
     prisma.outreachCampaign.count({ where }),
     prisma.outreachRecipient.count({ where: { unsubscribedAt: null } }),
   ]);
-  return NextResponse.json({ items, total, page, pageSize, subscribed });
+
+  // Per-campaign delivery breakdown so the table can show real progress.
+  const progress = await prisma.outreachDelivery.groupBy({
+    by: ["campaignId", "status"],
+    where: { campaignId: { in: items.map((item) => item.id) } },
+    _count: { _all: true },
+  });
+
+  const totals = new Map<string, { sent: number; pending: number; failed: number }>();
+  for (const row of progress) {
+    const entry = totals.get(row.campaignId) ?? { sent: 0, pending: 0, failed: 0 };
+    if (row.status === "SENT") entry.sent += row._count._all;
+    else if (row.status === "PENDING" || row.status === "SENDING")
+      entry.pending += row._count._all;
+    else if (row.status === "FAILED") entry.failed += row._count._all;
+    totals.set(row.campaignId, entry);
+  }
+
+  return NextResponse.json({
+    items: items.map((item) => ({
+      ...item,
+      progress: totals.get(item.id) ?? { sent: 0, pending: 0, failed: 0 },
+    })),
+    total,
+    page,
+    pageSize,
+    subscribed,
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -109,13 +143,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
+
   if (body.action === "retry") return retryCampaign(String(body.id ?? ""));
+  if (body.action === "run") return runCampaignBatch(String(body.id ?? ""));
+
   const name = String(body.name ?? "").trim(),
     subject = String(body.subject ?? "").trim(),
     bodyHtml = String(body.bodyHtml ?? "").trim(),
-    recipientCount = body.recipientCount === "all" || body.recipientCount == null
-      ? null
-      : Number(body.recipientCount);
+    recipientCount =
+      body.recipientCount === "all" || body.recipientCount == null
+        ? null
+        : Number(body.recipientCount),
+    batchSize = parseBatchSize(body.batchSize);
 
   if (!name || !subject || !bodyHtml)
     return NextResponse.json(
@@ -127,12 +166,17 @@ export async function POST(request: NextRequest) {
       { message: "Recipient count must be a positive whole number or all." },
       { status: 400 },
     );
+  if (batchSize === "invalid")
+    return NextResponse.json(
+      { message: "Contacts per run must be a positive whole number or all." },
+      { status: 400 },
+    );
 
   const recipients = await prisma.outreachRecipient.findMany({
     where: { unsubscribedAt: null },
     orderBy: { createdAt: "asc" },
     ...(recipientCount === null ? {} : { take: recipientCount }),
-    select: { id: true, email: true, name: true },
+    select: { id: true },
   });
 
   if (!recipients.length)
@@ -141,94 +185,41 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
 
-  const appUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL;
-  if (!appUrl) {
+  if (!appUrl())
     return NextResponse.json(
       { message: "Set NEXTAUTH_URL before sending outreach emails." },
       { status: 500 },
     );
-  }
 
   const campaign = await prisma.outreachCampaign.create({
     data: {
       name,
       subject,
       bodyHtml,
+      batchSize,
       deliveries: {
         create: recipients.map((recipient) => ({ recipientId: recipient.id })),
       },
     },
   });
 
-  let sent = 0;
-  let failed = 0;
+  const summary = await sendPendingDeliveries(campaign.id, batchSize);
+  const remaining = await settleCampaign(campaign.id);
 
-  for (const recipient of recipients) {
-    const claim = await prisma.outreachDelivery.updateMany({
-      where: { campaignId: campaign.id, recipientId: recipient.id, status: "PENDING" },
-      data: { status: "SENDING", attempts: { increment: 1 } },
-    });
-
-    if (!claim.count) continue;
-    const delivery = await prisma.outreachDelivery.findUnique({
-      where: { campaignId_recipientId: { campaignId: campaign.id, recipientId: recipient.id } },
-      select: { id: true },
-    });
-    if (!delivery) continue;
-
-    try {
-      console.log(`[campaign] sending to recipient ${sent}`, {
-        recipientId: recipient.id,
-        email: recipient.email,
-        campaignId: campaign.id,
-      });
-
-      const response = await sendOutreachMail({
-        to: recipient.email,
-        name: recipient.name,
-        subject: campaign.subject,
-        bodyHtml: campaign.bodyHtml,
-        unsubscribeUrl: `${appUrl}/api/unsubscribe?email=${encodeURIComponent(recipient.email)}`,
-      });
-
-      await prisma.outreachDelivery.update({
-        where: { id: delivery.id },
-        data: { status: "SENT", sentAt: new Date() },
-      });
-      sent += 1;
-
-      console.log(`[campaign] mail response ${sent}`, response);
-    } catch (error) {
-      console.error(`[campaign] failed recipient delivery ${sent}`, {
-        recipientId: recipient.id,
-        email: recipient.email,
-        campaignId: campaign.id,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
-      await prisma.outreachDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          status: "FAILED",
-          lastError: error instanceof Error ? error.message : "Mail error",
-        },
-      });
-      failed += 1;
-    }
-  }
-
-  await prisma.outreachCampaign.update({
-    where: { id: campaign.id },
-    data: { status: "COMPLETE", completedAt: new Date() },
-  });
-
-  return NextResponse.json({
-    campaignId: campaign.id,
-    queued: recipients.length,
-    sent,
-    failed,
-  });
+  return NextResponse.json(
+    {
+      campaignId: campaign.id,
+      batchSize,
+      queued: recipients.length,
+      processed: summary.processed,
+      sent: summary.sent,
+      failed: summary.failed,
+      skipped: summary.skipped,
+      remaining,
+      status: remaining === 0 ? "COMPLETE" : "RUNNING",
+    },
+    { status: 201 },
+  );
 }
 
 export async function PATCH(request: NextRequest) {
@@ -239,12 +230,27 @@ export async function PATCH(request: NextRequest) {
   const name = String(body.name ?? "").trim();
   const subject = String(body.subject ?? "").trim();
   const bodyHtml = String(body.bodyHtml ?? "").trim();
+
   if (!id || !name || !subject || !bodyHtml)
     return NextResponse.json({ message: "Campaign fields are required." }, { status: 400 });
+
+  const hasBatch = Object.prototype.hasOwnProperty.call(body, "batchSize");
+  const batchSize = hasBatch ? parseBatchSize(body.batchSize) : null;
+  if (batchSize === "invalid")
+    return NextResponse.json(
+      { message: "Contacts per run must be a positive whole number or all." },
+      { status: 400 },
+    );
+
   try {
     const item = await prisma.outreachCampaign.update({
       where: { id },
-      data: { name, subject, bodyHtml },
+      data: {
+        name,
+        subject,
+        bodyHtml,
+        ...(hasBatch ? { batchSize: batchSize as number | null } : {}),
+      },
       include: { _count: { select: { deliveries: true } } },
     });
     return NextResponse.json(item);

@@ -17,8 +17,12 @@
 /.next/
 /out/
 
+/scripts
+
 # production
 /build
+
+/public/csv
 
 # misc
 .DS_Store

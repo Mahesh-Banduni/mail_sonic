@@ -46,3 +46,6 @@ export function SearchIcon(props: IconProps) { return <Icon {...props}><circle c
 export function TrashIcon(props: IconProps) { return <Icon {...props}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" /></Icon>; }
 export function EditIcon(props: IconProps) { return <Icon {...props}><path d="m4 16-.8 4.8L8 20l11.2-11.2a2.1 2.1 0 0 0-3-3L4 16Z" /><path d="m14.5 7.5 2 2" /></Icon>; }
 export function SortIcon(props: IconProps) { return <Icon {...props}><path d="M8 6h12M8 12h8M8 18h4M4 5v14M4 5 2 7M4 5l2 2M4 19l-2-2M4 19l2-2" /></Icon>; }
+export function CloseIcon(props: IconProps) { return <Icon {...props}><path d="M18 6 6 18M6 6l12 12" /></Icon>; }
+export function RetryIcon(props: IconProps) { return <Icon {...props}><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></Icon>; }
+export function InfoIcon(props: IconProps) { return <Icon {...props}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></Icon>; }
